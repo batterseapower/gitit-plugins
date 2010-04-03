@@ -47,10 +47,12 @@ plugin = mkPageTransformM transformBlock
 transformBlock :: Block -> PluginM Block
 transformBlock (CodeBlock (_, classes, _namevals) contents) | "ditaa" `elem` classes = do
     cfg <- askConfig
-    let outfile = "img" </> uniqueName contents <.> "png"
+    let outfile = "img" </> "ditaa" </> uniqueName contents <.> "png"
     
-    liftIO $ renderDitaa (staticDir cfg </> outfile) contents
-                         ("no-separation" `elem` classes) ("no-shadows" `elem` classes)
+    liftIO $ do
+        createDirectoryIfMissing True (staticDir cfg </> takeDirectory outfile)
+        renderDitaa (staticDir cfg </> outfile) contents
+                    ("no-separation" `elem` classes) ("no-shadows" `elem` classes)
     
     return $ Para [Image [] ("/" ++ outfile, "")]
 transformBlock x = return x
