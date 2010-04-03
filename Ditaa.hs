@@ -29,6 +29,7 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Trans (liftIO)
 
+import Data.Char
 import Data.List
 import Data.Maybe
 
@@ -47,18 +48,19 @@ plugin :: Plugin
 plugin = mkPageTransformM transformBlock
 
 transformBlock :: Block -> PluginM Block
-transformBlock (CodeBlock (_, classes, _namevals) contents) | "ditaa" `elem` classes = do
+transformBlock (CodeBlock (_, classes, namevals) contents) | "ditaa" `elem` classes = do
     cfg <- askConfig
     let outfile = "img" </> uniqueName contents <.> "png"
     
     liftIO $ renderDitaa (staticDir cfg </> outfile) contents
-                         ("no-separation" `elem` classes) ("no-shadows" `elem` classes)
+                         (maybe False fromYesNo $ lookup "separation" namevals) -- I don't like the separation feature, turn off by default
+                         (maybe True  fromYesNo $ lookup "shadows" namevals)
     
     return $ Para [Image [] ("/" ++ outfile, "")]
 transformBlock x = return x
 
 renderDitaa :: FilePath -> String -> Bool -> Bool -> IO ()
-renderDitaa outfile contents no_separation no_shadows = unlessM (doesFileExist outfile) $ do
+renderDitaa outfile contents separation shadows = unlessM (doesFileExist outfile) $ do
     -- 0) Establish a temporary file name to store the data into before running ditaa
     tmp_dir <- getTemporaryDirectory
     withTempFile tmp_dir "ditaa.txt" $ \temp_file temp_file_h -> do
@@ -72,8 +74,8 @@ renderDitaa outfile contents no_separation no_shadows = unlessM (doesFileExist o
                        "-e", "utf8", -- UTF8 input (I think!)
                        "-o"          -- Overwrite existing file if present (shouldn't be necessary)
                       ] ++
-                      ["-E" | no_separation] ++
-                      ["-S" | no_shadows] ++
+                      ["-E" | not separation] ++
+                      ["-S" | not shadows] ++
                       [temp_file]
         (ec, _, stderr_out) <- readProcessWithExitCode "java" options ""
         if ec == ExitSuccess
@@ -85,6 +87,9 @@ findDitaaJar :: IO FilePath
 findDitaaJar = fmap (fromMaybe (error "Could not locate the ditaa .jar file in the current directory") . maybeHead .
                      filter ("ditaa" `isInfixOf`) . filter (".jar" `isSuffixOf`)) $
                     getCurrentDirectory >>= getDirectoryContents
+
+fromYesNo :: String -> Bool
+fromYesNo val = null val || (map toLower val) `elem` ["yes","true"]
 
 withTempFile :: FilePath -- ^ Temporary directory to create the file in
              -> String   -- ^ File name template: see 'openTempFile'
