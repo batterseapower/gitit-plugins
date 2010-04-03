@@ -47,35 +47,38 @@ plugin :: Plugin
 plugin = mkPageTransformM transformBlock
 
 transformBlock :: Block -> PluginM Block
-transformBlock (CodeBlock (_, classes, namevals) contents) | "ditaa" `elem` classes = do
+transformBlock (CodeBlock (_, classes, _namevals) contents) | "ditaa" `elem` classes = do
     cfg <- askConfig
-    let outfile_web = "img" </> uniqueName contents <.> "png"
-        outfile = staticDir cfg </> outfile_web
+    let outfile = "img" </> uniqueName contents <.> "png"
     
-    liftIO $ unlessM (doesFileExist outfile) $ do
-        -- 0) Establish a temporary file name to store the data into before running ditaa
-        tmp_dir <- getTemporaryDirectory
-        withTempFile tmp_dir "ditaa.txt" $ \temp_file temp_file_h -> do
-            -- 1) Setup input file by writing contents to it:
-            hPutStrLn temp_file_h contents
-            hClose temp_file_h
-      
-            -- 2) Run ditaa to turn into an equivalently named .png:
-            ditaa_jar <- findDitaaJar
-            let options = ["-jar", ditaa_jar,
-                           "-e", "utf8", -- UTF8 input (I think!)
-                           "-o"          -- Overwrite existing file if present (shouldn't be necessary)
-                          ] ++
-                          ["-E" | "no-separation" `elem` classes] ++
-                          ["-S" | "no-shadows" `elem` classes] ++
-                          [temp_file]
-            (ec, _, stderr_out) <- readProcessWithExitCode "java" options ""
-            if ec == ExitSuccess
-               then copyFile (replaceExtension temp_file ".png") outfile
-               else error $ "Error running ditaa: " ++ stderr_out
+    liftIO $ renderDitaa (staticDir cfg </> outfile) contents
+                         ("no-separation" `elem` classes) ("no-shadows" `elem` classes)
     
-    return $ Para [Image [] ("/" ++ outfile_web, "")]
+    return $ Para [Image [] ("/" ++ outfile, "")]
 transformBlock x = return x
+
+renderDitaa :: FilePath -> String -> Bool -> Bool -> IO ()
+renderDitaa outfile contents no_separation no_shadows = unlessM (doesFileExist outfile) $ do
+    -- 0) Establish a temporary file name to store the data into before running ditaa
+    tmp_dir <- getTemporaryDirectory
+    withTempFile tmp_dir "ditaa.txt" $ \temp_file temp_file_h -> do
+        -- 1) Setup input file by writing contents to it:
+        hPutStrLn temp_file_h contents
+        hClose temp_file_h
+  
+        -- 2) Run ditaa to turn into an equivalently named .png:
+        ditaa_jar <- findDitaaJar
+        let options = ["-jar", ditaa_jar,
+                       "-e", "utf8", -- UTF8 input (I think!)
+                       "-o"          -- Overwrite existing file if present (shouldn't be necessary)
+                      ] ++
+                      ["-E" | no_separation] ++
+                      ["-S" | no_shadows] ++
+                      [temp_file]
+        (ec, _, stderr_out) <- readProcessWithExitCode "java" options ""
+        if ec == ExitSuccess
+           then copyFile (replaceExtension temp_file ".png") outfile
+           else error $ "Error running ditaa: " ++ stderr_out
 
 -- | Find the ditaaXXX.jar file in the current directory
 findDitaaJar :: IO FilePath
@@ -94,8 +97,13 @@ withTempFile tmpDir template action =
 maybeHead :: [a] -> Maybe a
 maybeHead = foldr ((Just .) . const) Nothing
 
+unlessM :: Monad m => m Bool -> m () -> m ()
 unlessM mb mact = mb >>= \b -> unless b mact
 
 -- | Generate a unique filename given the file's contents.
 uniqueName :: String -> String
 uniqueName = showDigest . sha1 . fromString
+
+
+main :: IO ()
+main = renderDitaa "Ditaa.png" "+--+\n|Hi|\n+--+" True False
