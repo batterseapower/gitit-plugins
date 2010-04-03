@@ -56,7 +56,7 @@ transformBlock (CodeBlock (_, classes, namevals) contents) | "ditaa" `elem` clas
       createDirectoryIfMissing True (staticDir cfg </> takeDirectory outfile)
       renderDitaa (staticDir cfg </> outfile) contents
                          (maybe False fromYesNo $ lookup "separation" namevals) -- I don't like the separation feature, turn off by default
-                         (maybe True  fromYesNo $ lookup "shadows" namevals)
+                         (maybe False fromYesNo $ lookup "shadows" namevals)    -- Ditto for shadows. They mess up my ASCII heaps!
     
     return $ Para [Image [] ("/" ++ outfile, "")]
 transformBlock x = return x
