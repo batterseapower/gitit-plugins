@@ -49,7 +49,7 @@ transformBlock (CodeBlock (_, classes, _namevals) contents) | "ditaa" `elem` cla
     cfg <- askConfig
     let outfile = "img" </> uniqueName contents <.> "png"
     
-    liftIO $ renderDitaa (staticDir cfg </> outfile_web) contents
+    liftIO $ renderDitaa (staticDir cfg </> outfile) contents
                          ("no-separation" `elem` classes) ("no-shadows" `elem` classes)
     
     return $ Para [Image [] ("/" ++ outfile, "")]
