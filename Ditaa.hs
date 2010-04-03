@@ -1,6 +1,6 @@
 module Ditaa (plugin) where
 
--- This plugin allows you to include a ditaa diagram (http://ditaa.sourceforge.net)
+-- This plugin allows you to include a [ditaa diagram](http://ditaa.sourceforge.net)
 -- in a page like this:
 --
 -- ~~~ {.ditaa}
@@ -15,11 +15,13 @@ module Ditaa (plugin) where
 --     +-------------------------+
 -- ~~~
 --
--- The "java" executable must be in the path, and "ditaaXXX.jar" must be in the
+-- The `java` executable must be in the path, and `ditaaXXX.jar` must be in the
 -- current directory.
 --
--- The generated png file will be saved in the static img directory, using a unique
--- name will be generated from a hash of the contents.
+-- You can get the latest .jar from [here](http://ditaa.sourceforge.net/#download)
+--
+-- The generated PNG file will be saved in the static `img` directory, using a unique
+-- name generated from a hash of the contents.
 
 import Network.Gitit.Interface
 
